@@ -12,13 +12,17 @@ export default class AddProduct extends React.Component {
       formOpen: true
     });
   }
-
-  closeForm = (e) => {
-    e.preventDefault();
+  
+  closeForm = () => {
     this.setState({
       formOpen: false
     });
-  }
+  };
+
+  handleSubmit = (product) => {
+    this.closeForm();
+    this.props.onSubmit(product);
+  };
 
   render() {
     return (
@@ -27,7 +31,8 @@ export default class AddProduct extends React.Component {
           <div className="add-form visible">
              <h3>Add Product</h3>
              <ProductForm
-                onCancel={this.closeForm} 
+                onClose={this.closeForm}
+                onSubmit={this.handleSubmit}
              />
           </div>
         ) : (
