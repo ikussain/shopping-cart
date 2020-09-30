@@ -3,8 +3,6 @@ import ProductList from './ProductList';
 import ShoppingCart from './ShoppingCart';
 import AddProduct from './AddProduct';
 
-import data from '../lib/data';
-
 class App extends React.Component {
   state = {
     products: [],
@@ -15,10 +13,18 @@ class App extends React.Component {
     fetch('http://localhost:5000/api/products')
     .then((res) => res.json())
     .then((json) => {
-      this.setState((prevState) => ({
-        products: json
-      }));
-    })
+      json = json.map((item) => {
+        const thisId = item._id;
+        item.id = thisId;
+        return item;
+      });
+
+      this.setState((prevState) => {
+        return {
+          products: json
+        };
+      })
+    });
   }
 
   handleNewProduct = (product) => {
@@ -31,27 +37,89 @@ class App extends React.Component {
     })
     .then((res) => res.json())
     .then((json) => {
+      json.id = json._id;
       this.setState({ products: this.state.products.concat(json) });
     });
   };
 
   handleProductUpdate = (product) => {
-    const products = this.state.products.map(prod => {
-      if (prod.id === product.id) {
-        return product;
-      } else {
-        return prod;
-      }
+    fetch(`http://localhost:5000/api/products/${product.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(product)
+    })
+    .then((res) => res.json())
+    .then((json) => {
+      json.id = json._id;
+
+      const newProducts = this.state.products.map((prod) => {
+        if (json.id === prod.id) {
+          return json;
+        } else {
+          return prod;
+        }
+      });
+
+      this.setState({ products: newProducts }, () => this.synchronizeCartPrices(product) );
     });
+  };
+
+  synchronizeCartPrices = (product) => {
+    if (!this.state.cart.items[product.id]) return;
+
+    let newCart = Object.assign({}, this.state.cart);
+    let newCartItems = Object.assign({}, newCart.items);
+    const newProduct = Object.assign({}, newCartItems[product.id]);
+
+    newProduct.price = product.price;
+    newProduct.quantity = this.state.cart.items[product.id].quantity;
+
+    const priceDifference = product.price - this.state.cart.items[product.id].price;
+    const totalDifference = priceDifference * newProduct.quantity;
+
+    newCartItems = Object.assign({}, newCartItems, { [product.id]: newProduct })
+    newCart.items = newCartItems;
+    newCart.totalPrice = newCart.totalPrice + totalDifference;
 
     this.setState({
-      products
+      cart: newCart,
+    });
+  };
+
+  synchronizeCartContents = (id) => {
+    if (!this.state.cart.items[id]) return;
+
+    let newCart = Object.assign({}, this.state.cart);
+    let newCartItems = Object.assign({}, newCart.items);
+
+    delete newCartItems[id];
+    newCart.items = newCartItems;
+
+    const existingPrice = this.state.cart.totalPrice;
+    const productPrice = this.state.cart.items[id].price;
+    const productQuantity = this.state.cart.items[id].quantity;
+
+    const newTotalPrice = existingPrice - productPrice * productQuantity;
+    newCart.totalPrice = newTotalPrice;
+
+    this.setState({
+      cart: newCart,
     });
   };
 
   handleProductDelete = (id) => {
-    const products = this.state.products.filter(prod => prod.id !== id);
-    this.setState({ products });
+    fetch(`http://localhost:5000/api/products/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then((res) => {
+      const products = this.state.products.filter(prod => prod.id !== id);
+      this.setState({ products }, () => this.synchronizeCartContents(id));
+    });
   };
 
   addToCart = (productId) => {
@@ -74,8 +142,8 @@ class App extends React.Component {
     this.setState((prevState) => ({
       cart: (() => {
         if (prevState.cart.items.hasOwnProperty(product.id)) {
-          return Object.assign({}, prevState.cart, { 
-            items: Object.assign({}, prevState.cart.items, { 
+          return Object.assign({}, prevState.cart, {
+            items: Object.assign({}, prevState.cart.items, {
               [product.id]: Object.assign({}, prevState.cart.items[product.id], { quantity: prevState.cart.items[product.id].quantity + 1 })})
           })
         } else {
@@ -92,25 +160,36 @@ class App extends React.Component {
     }));
   };
 
+  handleCheckoutClick = (event) => {
+    event.preventDefault();
+
+    if (event.target.classList.contains('disabled')) return;
+
+    this.setState({
+      cart: { items: {}, totalPrice: 0 }
+    });
+  }
+
   render() {
     return (
       <div id="app">
         <header>
           <h1>The Shop</h1>
-          <ShoppingCart 
+          <ShoppingCart
             products={this.state.products}
             totalPrice={this.state.cart.totalPrice}
             items={Object.values(this.state.cart.items)}
+            onCheckoutClick={this.handleCheckoutClick}
           />
         </header>
         <main>
-          <ProductList 
+          <ProductList
             products={this.state.products}
             onSubmit={this.handleProductUpdate}
             onAdd={this.addToCart}
             onDelete={this.handleProductDelete}
           />
-          <AddProduct 
+          <AddProduct
             onSubmit={this.handleNewProduct}
           />
         </main>
