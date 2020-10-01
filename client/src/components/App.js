@@ -2,14 +2,17 @@ import React from "react";
 import ProductList from './ProductList';
 import ShoppingCart from './ShoppingCart';
 import AddProduct from './AddProduct';
+import store from '../lib/store';
 
 class App extends React.Component {
   state = {
-    products: [],
+  //  products: [],
     cart: { items: {}, totalPrice: 0 }
   }
 
   componentDidMount() {
+    this.unsubscribe = store.subscribe(() => { this.forceUpdate() });
+    
     fetch('http://localhost:5000/api/products')
     .then((res) => res.json())
     .then((json) => {
@@ -18,13 +21,22 @@ class App extends React.Component {
         item.id = thisId;
         return item;
       });
-
+      store.dispatch({
+        type: 'RECEIVE_PRODUCTS',
+        payload: { products: json },
+      });
+      /*
       this.setState((prevState) => {
         return {
           products: json
         };
       })
+      */
     });
+  }
+
+  componentWillUnmount() {
+    this.unsubscribe();
   }
 
   handleNewProduct = (product) => {
@@ -38,7 +50,11 @@ class App extends React.Component {
     .then((res) => res.json())
     .then((json) => {
       json.id = json._id;
-      this.setState({ products: this.state.products.concat(json) });
+      //this.setState({ products: this.state.products.concat(json) });
+      store.dispatch({ 
+        type: 'ADD_PRODUCT', 
+        payload: { product: json },
+      });
     });
   };
 
@@ -53,16 +69,11 @@ class App extends React.Component {
     .then((res) => res.json())
     .then((json) => {
       json.id = json._id;
-
-      const newProducts = this.state.products.map((prod) => {
-        if (json.id === prod.id) {
-          return json;
-        } else {
-          return prod;
-        }
+      //this.setState({ products: newProducts }, () => this.synchronizeCartPrices(product) );
+      store.dispatch({ 
+        type: 'UPDATE_PRODUCT',
+        payload: { product: json },
       });
-
-      this.setState({ products: newProducts }, () => this.synchronizeCartPrices(product) );
     });
   };
 
@@ -117,14 +128,19 @@ class App extends React.Component {
       }
     })
     .then((res) => {
-      const products = this.state.products.filter(prod => prod.id !== id);
-      this.setState({ products }, () => this.synchronizeCartContents(id));
+      //const products = this.state.products.filter(prod => prod.id !== id);
+      //this.setState({ products }, () => this.synchronizeCartContents(id));
+      store.dispatch({ 
+        type: 'DELETE_PRODUCT',
+        payload: { id: id },
+      });
     });
   };
 
   addToCart = (productId) => {
     let product;
 
+    /*
     this.setState((prevState) => ({
       products: prevState.products.map(prod => {
         if (prod.id === productId) {
@@ -136,6 +152,7 @@ class App extends React.Component {
           return prod;
         }
       })
+      */
     }));
 
     // add to cart
@@ -171,12 +188,14 @@ class App extends React.Component {
   }
 
   render() {
+    const state = store.getState();
+    console.log(state);
     return (
       <div id="app">
         <header>
           <h1>The Shop</h1>
           <ShoppingCart
-            products={this.state.products}
+            products={state.products}
             totalPrice={this.state.cart.totalPrice}
             items={Object.values(this.state.cart.items)}
             onCheckoutClick={this.handleCheckoutClick}
@@ -184,7 +203,7 @@ class App extends React.Component {
         </header>
         <main>
           <ProductList
-            products={this.state.products}
+            products={state.products}
             onSubmit={this.handleProductUpdate}
             onAdd={this.addToCart}
             onDelete={this.handleProductDelete}
