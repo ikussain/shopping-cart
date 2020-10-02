@@ -1,6 +1,8 @@
+/* eslint-disable jsx-a11y/anchor-is-valid */
 import React from "react";
 
 export default function ShoppingCart({ totalPrice, items, onCheckoutClick }) {
+  console.log(items);
   return (
     <div class="cart">
       <h2>Your Cart</h2>
@@ -31,7 +33,10 @@ export default function ShoppingCart({ totalPrice, items, onCheckoutClick }) {
       )}
 
       <a
-        onClick={onCheckoutClick}
+        onClick={(e) => {
+          e.preventDefault();
+          onCheckoutClick();
+        }}
         className={"button checkout" + (items.length === 0 ? " disabled" : "")}
       >
         Checkout

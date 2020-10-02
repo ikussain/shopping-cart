@@ -1,3 +1,4 @@
+import { connect } from 'react-redux';
 import { createStore, combineReducers } from 'redux'
 
 const products = (state = [], action) => {
@@ -17,7 +18,15 @@ const products = (state = [], action) => {
     case 'RECEIVE_PRODUCTS':
       return action.payload.products;
     case 'ADD_TO_CART':
-      //map over qty
+      const productId = action.payload.product.id;
+      return state.map((prod) => {
+        if (prod.id === productId) {
+          return Object.assign({}, prod, { 
+            quantity: prod.quantity - 1
+          });
+        } 
+        return prod;
+      });
     default:
       return state;
   }
@@ -25,38 +34,42 @@ const products = (state = [], action) => {
 
 const cart = (state = { items: {}, totalPrice: 0 }, action) => {
   switch (action.type) {
-    case 'ADD':
+    case 'ADD_TO_CART':
       const product = Object.assign({}, action.payload.product, { 
-        quantity: items[action.payload.product.id] ? items[action.payload.product.id] + 1 : 1,
+        quantity: state.items[action.payload.product.id] ? state.items[action.payload.product.id].quantity + 1 : 1,
       });
       const items = Object.assign({}, state.items, { [action.payload.product.id]: product, });
       const totalPrice = action.payload.product.price + state.totalPrice;
       const newState = { items, totalPrice };
       return newState;
-    case 'REMOVE':
+    case 'DELETE_PRODUCT':
       const id = action.payload.id;
       const thisProduct = state.items[id];
       if (!thisProduct) return state;
       const priceChange = thisProduct.price * thisProduct.quantity;
-      const totalPrice = state.totalPrice - priceChange;
-      const items = Object.assign({}, state.items);
-      delete items[id];
-      return { items, totalPrice };
-    case 'UPDATE':
-      const product = action.payload.product;
-      const id = product.id;
-      const thisProduct = state.items[id];
-      if (!thisProduct) return state;
-      const priceChange = (thisProduct.price - product.price) * thisProduct.quantity;
-      const totalPrice = state.totalPrice - priceChange;
-      const items = Object.assign({}, state.items, { 
-        [id]: Object.assign({}, thisProduct, { price: product.price }),
-      });
-      return { items, totalPrice };
-    case 'CHECKOUT':
+      {
+        const totalPrice = state.totalPrice - priceChange;
+        const items = Object.assign({}, state.items);
+        delete items[id];
+        return { items, totalPrice };
+      }
+    case 'UPDATE_PRODUCT':
+      {
+        const product = action.payload.product;
+        const id = product.id;
+        const thisProduct = state.items[id];
+        if (!thisProduct) return state;
+        const priceChange = (thisProduct.price - product.price) * thisProduct.quantity;
+        const totalPrice = state.totalPrice - priceChange;
+        const items = Object.assign({}, state.items, { 
+          [id]: Object.assign({}, thisProduct, { price: product.price }),
+        });
+        return { items, totalPrice };
+      }
+    case 'CART_CHECKOUT':
       return { items: {}, totalPrice: 0 };
     default:
-      //
+      return state;
   }
 };
 

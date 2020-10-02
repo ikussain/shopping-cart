@@ -19,14 +19,14 @@ export default class ProductActions extends React.Component {
     });
   };
 
-  handleSubmit = (product) => {
-    this.props.onSubmit(product);
+  handleUpdate = (product) => {
+    this.props.onUpdate(product);
     this.closeForm();
   };
 
   handleAdd = (e) => {
     e.preventDefault();
-    this.props.onAdd(this.props.product.id);
+    this.props.onAdd(this.props.product);
   };
 
   render() {
@@ -35,7 +35,7 @@ export default class ProductActions extends React.Component {
         {this.state.formOpen ? (
           <ProductForm
             product={this.props.product}
-            onSubmit={this.handleSubmit}
+            onSubmit={this.handleUpdate}
             onClose={this.closeForm}
           />
         ) : (
